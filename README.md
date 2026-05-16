@@ -137,3 +137,75 @@ Pull Request'ы приветствуются.
 ---
 
 **MIT © [GPCProject](https://github.com/GPCProject)**
+
+---
+
+# switch9proxy — English
+
+**Profile switcher for 9router.**  
+Multiple isolated workspaces for AI router. Each workspace has its own API keys, providers, OAuth tokens.
+
+Why:
+- **Kiro** has 50 credits. Credits ran out — switch to another workspace with different Builder ID
+- **OpenCode** checks IP. Switch workspace — it thinks you're a new user
+- **OpenRouter** with different keys. Different workspaces = different keys
+
+Doesn't touch original 9router. Just restarts it with another `DATA_DIR`.
+
+## How it works
+
+9router stores all data in SQLite. Path to DB is set via `DATA_DIR` env.  
+
+switch9proxy:
+1. **Stops** 9router (kill process on port 20128)
+2. **Changes** `DATA_DIR` to target workspace
+3. **Starts** 9router again
+
+Workspace `main` uses original `%APPDATA%\9router` folder.  
+Other workspaces created in `~/.workspace-manager/workspaces/` with clean DB.
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| backend | Node.js, plain `http` module |
+| database | SQLite via `sql.js` |
+| frontend | vanilla JS, single `index.html` |
+| CLI | Commander.js |
+| dashboard | cyberpunk, JetBrains Mono, CSS variables |
+
+No Express, React, Docker, TypeScript.
+
+## Install
+
+```bash
+npm install -g 9router
+git clone https://github.com/GPCProject/switch9proxy.git
+cd switch9proxy
+npm install
+npm start
+```
+
+Open: **http://localhost:20129**
+
+## API
+
+```
+GET  /api/workspaces                      — list workspaces
+GET  /api/workspace/providers?name=X      — providers for workspace X
+GET  /api/workspace/stats?name=X          — stats for workspace X
+PUT  /api/workspace/switch                — switch {name:"stealth"}
+POST /api/workspaces                      — create {name:"stealth"}
+DELETE /api/workspaces/:name              — delete
+```
+
+## v0.1.0 — beta
+
+Bugs possible. Open an Issue on GitHub if something breaks.
+
+## Contributing
+
+Pull Requests welcome. Fork → changes → PR.  
+MIT license.
+
+**MIT © [GPCProject](https://github.com/GPCProject)**
