@@ -1,0 +1,16 @@
+node_modules/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+Backs/
+Logs/
+.plans/
+.playwright-mcp/
+tmp.sqlite
+switch9proxy-snapshot.txt
+switch9proxy-step2-preview.txt
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.local

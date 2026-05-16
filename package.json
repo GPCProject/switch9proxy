@@ -1,0 +1,26 @@
+{
+  "name": "workspace-manager",
+  "version": "0.1.0",
+  "description": "AI Router Workspace Switcher — переключатель окружений для 9router",
+  "main": "src/index.js",
+  "bin": {
+    "workspace-manager": "./cli/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "cli": "node cli/index.js"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "sql.js": "^1.14.1"
+  },
+  "keywords": [
+    "9router",
+    "ai-router",
+    "workspace",
+    "proxy",
+    "multi-account"
+  ],
+  "license": "MIT"
+}

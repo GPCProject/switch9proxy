@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>switch9proxy // terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== RESET ===== */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ===== ROOT ===== */
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f0f1a;
+    --bg3: #151525;
+    --green: #00ff41;
+    --cyan: #00d4ff;
+    --red: #ff003c;
+    --orange: #ff7700;
+    --text: #c0c0c0;
+    --text-dim: #606080;
+    --border: #1a1a30;
+    --glow-green: 0 0 10px rgba(0,255,65,0.15);
+    --glow-cyan: 0 0 10px rgba(0,212,255,0.12);
+    --radius: 8px;
+  }
+
+  html { height: 100%; }
+  body {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem;
+    line-height: 1.6;
+  }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  /* ===== LAYOUT ===== */
+  .app {
+    max-width: 1100px;
+    width: 100%;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1rem;
+  }
+  .header pre {
+    color: var(--green);
+    font-size: 0.65rem;
+    line-height: 1.2;
+    text-shadow: var(--glow-green);
+    user-select: none;
+    overflow-x: auto;
+  }
+  .header h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--cyan);
+    margin-top: 0.5rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .header h1 span { color: var(--green); }
+  .header .sub {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 0.3rem;
+  }
+
+  /* ===== PANELS ===== */
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--glow-green);
+  }
+  .panel-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--green);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .panel-title .count {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    background: var(--bg3);
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  /* ===== WORKSPACE LIST ===== */
+  .ws-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 0.75rem;
+  }
+  .ws-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .ws-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+  .ws-card.active::before { background: var(--green); box-shadow: var(--glow-green); }
+  .ws-card.active { border-color: rgba(0,255,65,0.3); }
+  .ws-card.running::before { background: var(--green); }
+
+  .ws-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+  }
+  .ws-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--cyan);
+  }
+  .ws-name .active-badge {
+    font-size: 0.6rem;
+    color: var(--green);
+    margin-left: 0.4rem;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .ws-status-badge {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .ws-status-badge.running { background: rgba(0,255,65,0.12); color: var(--green); }
+  .ws-status-badge.created { background: rgba(0,212,255,0.12); color: var(--cyan); }
+  .ws-status-badge.error { background: rgba(255,0,60,0.12); color: var(--red); }
+
+  .ws-card-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+  }
+
+  /* ===== PROVIDERS TABLE ===== */
+  .providers-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+  }
+  .providers-table th {
+    text-align: left;
+    color: var(--text-dim);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.6rem;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .providers-table td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid rgba(26,26,48,0.5);
+    vertical-align: middle;
+  }
+  .providers-table tr:hover td { background: rgba(0,212,255,0.03); }
+  .providers-table .provider-name { color: var(--cyan); font-weight: 500; }
+  .providers-table .provider-email { color: var(--text-dim); font-size: 0.65rem; }
+  .providers-table .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 0.3rem;
+  }
+  .status-dot.active { background: var(--green); box-shadow: 0 0 6px rgba(0,255,65,0.5); }
+  .status-dot.inactive { background: var(--text-dim); }
+  .providers-table .credits {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+  }
+  .providers-table .credits.low { color: var(--orange); }
+  .providers-table .credits.empty { color: var(--red); }
+
+  /* ===== STATS GRID ===== */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+  .stat-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--green);
+    text-shadow: var(--glow-green);
+  }
+  .stat-label {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 0.2rem;
+  }
+  .stat-card.provider .stat-value { color: var(--cyan); text-shadow: var(--glow-cyan); }
+
+  /* ===== PROVIDER STATS ===== */
+  .provider-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .provider-stat-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+  }
+  .provider-stat-item .ps-name { color: var(--cyan); }
+  .provider-stat-item .ps-val { color: var(--text); }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    padding: 0.45rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .btn:hover { border-color: var(--green); color: var(--green); box-shadow: var(--glow-green); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-primary { border-color: var(--green); color: var(--green); }
+  .btn-primary:hover { background: rgba(0,255,65,0.08); }
+  .btn-danger { border-color: var(--red); color: var(--red); }
+  .btn-danger:hover { background: rgba(255,0,60,0.08); }
+  .btn-cyan { border-color: var(--cyan); color: var(--cyan); }
+  .btn-cyan:hover { background: rgba(0,212,255,0.08); }
+
+  /* ===== FORM ===== */
+  .create-form {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .create-form input {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    padding: 0.45rem 0.8rem;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--green);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .create-form input:focus { border-color: var(--green); box-shadow: var(--glow-green); }
+  .create-form input::placeholder { color: var(--text-dim); }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.8rem 1.2rem;
+    font-size: 0.75rem;
+    transform: translateY(120%);
+    transition: transform 0.3s ease;
+    z-index: 999;
+    max-width: 400px;
+  }
+  .toast.show { transform: translateY(0); }
+  .toast.ok { border-color: var(--green); box-shadow: var(--glow-green); }
+  .toast.err { border-color: var(--red); }
+  .toast .toast-icon { margin-right: 0.5rem; }
+
+  /* ===== LOADING ===== */
+  .loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+  }
+  .loading .loader {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    margin-right: 0.5rem;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+  }
+  .empty-state .ascii-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-dim);
+  }
+
+  /* ===== STATUS BAR ===== */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    margin-top: 0.75rem;
+  }
+  .status-bar .online { color: var(--green); }
+  .status-bar .offline { color: var(--red); }
+
+  /* ===== ACCOUNTS SECTION ===== */
+  .account-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .account-chip {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.65rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .account-chip .chip-provider { color: var(--cyan); }
+  .account-chip .chip-email { color: var(--text-dim); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 700px) {
+    body { padding: 1rem 0.5rem; }
+    .ws-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .header pre { font-size: 0.45rem; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- HEADER -->
+  <div class="header">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <div>
+        <h1 style="margin:0;font-size:1.2rem">⦿ switch9<span style="color:var(--green)">proxy</span></h1>
+        <div style="color:var(--green);font-size:0.6rem;letter-spacing:1px;margin-top:0.2rem">from Jany.version</div>
+      </div>
+      <div style="display:flex;gap:0.3rem">
+        <button class="btn btn-lang" onclick="setLang('ru')" id="lang-ru" style="font-size:0.6rem;padding:0.2rem 0.5rem;border-color:var(--green)">RU</button>
+        <button class="btn btn-lang" onclick="setLang('en')" id="lang-en" style="font-size:0.6rem;padding:0.2rem 0.5rem">EN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKSPACES -->
+  <div class="panel" id="workspaces-panel">
+    <div class="panel-title">
+      ⚡ WORKSPACES
+      <span class="count" id="ws-count">0</span>
+    </div>
+    <div id="workspace-list" class="ws-grid"></div>
+
+    <div class="create-form" style="margin-top:1rem">
+      <input type="text" id="new-name" placeholder="название (stealth, work, home...)" maxlength="32" autocomplete="off" spellcheck="false">
+      <button class="btn btn-primary" id="create-btn" onclick="createWorkspace()">+ создать</button>
+    </div>
+  </div>
+
+  <!-- PROVIDERS -->
+  <div class="panel" id="providers-panel">
+    <div class="panel-title">
+      🔌 ПРОВАЙДЕРЫ
+      <span class="count" id="prov-count">—</span>
+    </div>
+    <div id="providers-content"><div class="empty-state">Нет активного workspace либо нет данных</div></div>
+  </div>
+
+  <!-- ACCOUNTS -->
+  <div class="panel" id="accounts-panel">
+    <div class="panel-title">
+      👤 ПРИВЯЗАННЫЕ АККАУНТЫ
+    </div>
+    <div id="accounts-content"><div class="empty-state">Нет данных</div></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="panel" id="stats-panel">
+    <div class="panel-title">
+      📊 СТАТИСТИКА
+      <span class="count" id="stats-count">—</span>
+    </div>
+    <div id="stats-content"><div class="empty-state">Нет данных</div></div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <span>⚡ <span id="active-ws-display">—</span></span>
+    <span>🌐 <span id="ws-status-display" class="offline">offline</span></span>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toast-icon">✓</span>
+  <span id="toast-msg"></span>
+</div>
+
+<script>
+const API = 'http://localhost:20129';
+
+// ============================================================
+// ЯЗЫК
+// ============================================================
+let _lang = 'ru';
+const _strings = {
+  ru: {
+    noActive: 'Нет активного workspace',
+    noData: 'Нет данных',
+    noProviders: 'Нет подключенных провайдеров',
+    noAccounts: 'Нет привязанных email аккаунтов',
+    noStats: 'Нет данных',
+    serverOffline: '⚠️ Сервер не отвечает',
+    errLoading: 'Ошибка загрузки',
+    notRunning: '⚠️ Workspace Manager не запущен',
+    createWs: 'создать',
+    switch: '❯ switch',
+    del: '✕ del',
+    addKiro: '🔗 добавить Kiro (OAuth)',
+    oauthOpen: 'Открываю окно OAuth для Kiro...',
+    WS: 'WORKSPACES',
+    PROVIDERS: 'ПРОВАЙДЕРЫ',
+    ACCOUNTS: 'ПРИВЯЗАННЫЕ АККАУНТЫ',
+    STATS: 'СТАТИСТИКА',
+    totalTokens: 'всего токенов',
+    totalReqs: 'всего запросов',
+    todayTokens: 'сегодня токенов',
+    weekTokens: 'за неделю токенов',
+    totalCost: 'общая стоимость',
+    byProvider: 'ПО ПРОВАЙДЕРАМ',
+    tokensPer: 'токенов',
+    reqsPer: 'запр.',
+    active: 'active',
+    inactive: 'inactive',
+    modelLocks: 'БЛОКИРОВКИ МОДЕЛЕЙ',
+    noLocks: 'Нет блокировок',
+    lockedUntil: 'заблокирована до',
+    rateLimited: 'rate limited',
+    error: 'ошибка',
+    noWorkspace: 'Нет workspace. Создайте первый.',
+    serverUnreachable: '⚠️ Сервер недоступен. Повтор через 30с...',
+    retry: 'повтор',
+    addProxy: 'добавить',
+  },
+  en: {
+    noActive: 'No active workspace',
+    noData: 'No data',
+    noProviders: 'No connected providers',
+    noAccounts: 'No linked email accounts',
+    noStats: 'No data',
+    serverOffline: '⚠️ Server offline',
+    errLoading: 'Loading error',
+    notRunning: '⚠️ Workspace Manager is not running',
+    createWs: 'create',
+    switch: '❯ switch',
+    del: '✕ del',
+    addKiro: '🔗 add Kiro (OAuth)',
+    oauthOpen: 'Opening OAuth window for Kiro...',
+    WS: 'WORKSPACES',
+    PROVIDERS: 'PROVIDERS',
+    ACCOUNTS: 'ACCOUNTS',
+    STATS: 'STATISTICS',
+    totalTokens: 'total tokens',
+    totalReqs: 'total requests',
+    todayTokens: 'today tokens',
+    weekTokens: 'week tokens',
+    totalCost: 'total cost',
+    byProvider: 'BY PROVIDER',
+    tokensPer: 'tokens',
+    reqsPer: 'req.',
+    active: 'active',
+    inactive: 'inactive',
+    modelLocks: 'MODEL LOCKS',
+    noLocks: 'No locks',
+    lockedUntil: 'locked until',
+    rateLimited: 'rate limited',
+    error: 'error',
+    noWorkspace: 'No workspaces. Create first.',
+    serverUnreachable: '⚠️ Server unreachable. Retry in 30s...',
+    retry: 'retry',
+    addProxy: 'add',
+  },
+};
+function _(key) { return _strings[_lang][key] || key; }
+
+function setLang(l) {
+  _lang = l;
+  document.querySelectorAll('.btn-lang').forEach(b => b.style.borderColor = 'var(--border)');
+  const btn = document.getElementById('lang-' + l);
+  if (btn) btn.style.borderColor = 'var(--green)';
+  load();
+}
+
+// ============================================================
+// MAIN
+// ============================================================
+
+let _previewName = null;
+
+async function load() {
+  try {
+    const res = await fetch(`${API}/api/workspaces`);
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    render(data.workspaces, data.active);
+
+    window._pollErrCount = 0;
+
+    // Если есть preview — показываем его, иначе активный
+    const showName = _previewName || data.active;
+    if (showName) {
+      loadProviders(showName);
+      loadStats(showName);
+    } else {
+      document.getElementById('providers-content').innerHTML = `<div class="empty-state">${_('noActive')}</div>`;
+      document.getElementById('accounts-content').innerHTML = `<div class="empty-state">${_('noData')}</div>`;
+      document.getElementById('stats-content').innerHTML = `<div class="empty-state">${_('noStats')}</div>`;
+    }
+  } catch (e) {
+    window._pollErrCount = (window._pollErrCount || 0) + 1;
+    if (window._pollErrCount >= 3) {
+      document.getElementById('workspace-list').innerHTML = `<div class="empty-state">${_('serverUnreachable')}</div>`;
+      clearInterval(window._pollTimer);
+      setTimeout(() => {
+        window._pollErrCount = 0;
+        window._pollTimer = setInterval(load, 5000);
+        load();
+      }, 30000);
+      return;
+    }
+    document.getElementById('workspace-list').innerHTML = `<div class="empty-state">${_('notRunning')}</div>`;
+    document.getElementById('providers-content').innerHTML = `<div class="empty-state">${_('serverOffline')}</div>`;
+    document.getElementById('accounts-content').innerHTML = `<div class="empty-state">${_('serverOffline')}</div>`;
+    document.getElementById('stats-content').innerHTML = `<div class="empty-state">${_('serverOffline')}</div>`;
+  }
+}
+
+async function loadProviders(wsName) {
+  const el = document.getElementById('providers-content');
+  const accountsEl = document.getElementById('accounts-content');
+  try {
+    const url = wsName ? `${API}/api/workspace/providers?name=${encodeURIComponent(wsName)}` : `${API}/api/workspace/providers`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    renderProviders(data.providers);
+    renderAccounts(data.providers);
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state">${_('errLoading')}</div>`;
+    accountsEl.innerHTML = `<div class="empty-state">${_('errLoading')}</div>`;
+  }
+}
+
+async function loadStats(wsName) {
+  const el = document.getElementById('stats-content');
+  try {
+    const url = wsName ? `${API}/api/workspace/stats?name=${encodeURIComponent(wsName)}` : `${API}/api/workspace/stats`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    renderStats(data.stats);
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state">${_('errLoading')}</div>`;
+  }
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+
+function render(workspaces, active) {
+  const container = document.getElementById('workspace-list');
+  document.getElementById('ws-count').textContent = workspaces ? workspaces.length : 0;
+
+  if (!workspaces || workspaces.length === 0) {
+    container.innerHTML = `<div class="empty-state">${_('noWorkspace')}</div>`;
+    return;
+  }
+
+  container.innerHTML = workspaces.map(w => {
+    const isActive = w.name === active;
+    return `<div class="ws-card ${isActive ? 'active' : ''} ${w.status}" onclick="previewWs('${w.name}')" style="cursor:pointer">
+      <div class="ws-card-header">
+        <div>
+          <div class="ws-name">
+            ${isActive ? '▶ ' : ''}${w.name}
+            ${isActive ? '<span class="active-badge">● ACTIVE</span>' : ''}
+          </div>
+          <div class="ws-status-badge ${w.status}">${w.status === 'stopped' ? _('inactive') : w.status}</div>
+        </div>
+      </div>
+      <div class="ws-card-actions">
+        ${!isActive
+          ? `<button class="btn btn-primary" onclick="event.stopPropagation();switchWs('${w.name}')">${_('switch')}</button>`
+          : ''}
+        ${w.name !== 'main'
+          ? `<button class="btn btn-danger" onclick="event.stopPropagation();deleteWs('${w.name}')">${_('del')}</button>`
+          : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderProviders(providers) {
+  const el = document.getElementById('providers-content');
+  const count = document.getElementById('prov-count');
+
+  if (!providers || providers.length === 0) {
+    el.innerHTML = `<div class="empty-state">${_('noProviders')}</div>`;
+    count.textContent = '0';
+    return;
+  }
+
+  count.textContent = providers.length;
+
+  let html = `<table class="providers-table">
+    <thead><tr>
+      <th>${_('PROVIDERS')}</th>
+      <th>${_('ACCOUNTS')}</th>
+      <th>Тип</th>
+      <th>${_('active')}</th>
+      <th>Credits</th>
+    </tr></thead>
+    <tbody>
+    ${providers.map((p, i) => {
+      const email = p.email || '—';
+      const active = p.isActive;
+      const hasError = p.errorCode >= 400;
+      const statusText = hasError
+        ? `<span style="color:var(--red)" title="${esc(p.lastError || '')}">⚠ ${p.errorCode}</span>`
+        : (active ? _(p.isRateLimited ? 'rateLimited' : 'active') : _(p.inactive || 'inactive'));
+      const statusDot = hasError ? 'error' : (active ? 'active' : 'inactive');
+      const creditsHtml = p.credits
+        ? renderCredits(p.credits)
+        : '<span class="credits">—</span>';
+      const locks = p.modelLocks || [];
+      const hasLocks = locks.length > 0;
+      return `<tr onclick="toggleLocks(${i})" style="cursor:pointer">
+        <td><span class="provider-name">${esc(p.provider)}${hasLocks ? ` <span style="color:var(--text-dim);font-size:0.6rem">[${locks.length}]</span>` : ''}</span></td>
+        <td><span class="provider-email">${esc(email)}</span></td>
+        <td>${esc(p.authType || '—')}</td>
+        <td><span class="status-dot ${statusDot}"></span>${statusText}</td>
+        <td>${creditsHtml}</td>
+      </tr>
+      ${hasLocks ? `<tr id="locks-${i}" style="display:${_openLocks.has(i) ? '' : 'none'}"><td colspan="5" style="padding:0.3rem;background:var(--bg3)">
+        ${locks.map(l => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.15rem 0;gap:0.5rem;max-width:100%">
+          <span style="color:var(--orange);font-size:0.6rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${esc(l.model)}</span>
+          <span style="color:var(--text-dim);font-size:0.55rem;white-space:nowrap;flex-shrink:0">${new Date(l.lockedUntil).toLocaleTimeString()}</span>
+        </div>`).join('')}
+      </td></tr>` : ''}`;
+    }).join('')}
+    </tbody>
+  </table>`;
+
+  el.innerHTML = html;
+
+  // Кнопка auto-OAuth для Kiro
+  const hasKiro = providers.some(p => p.provider && p.provider.toLowerCase() === 'kiro');
+  if (!hasKiro) {
+    el.innerHTML += `<div style="margin-top:0.75rem">
+      <button class="btn btn-cyan" onclick="autoOAuthKiro()">${_('addKiro')}</button>
+    </div>`;
+  }
+}
+
+function renderCredits(credits) {
+  if (!credits) return '<span class="credits">—</span>';
+  const used = credits.used || 0;
+  const total = credits.total || 0;
+  const pct = total > 0 ? Math.round((used / total) * 100) : 0;
+  let cls = 'credits';
+  if (pct >= 80) cls += ' empty';
+  else if (pct >= 50) cls += ' low';
+  return `<span class="${cls}">${used}/${total} (${pct}%)</span>`;
+}
+
+function renderAccounts(providers) {
+  const el = document.getElementById('accounts-content');
+  if (!providers || providers.length === 0) {
+    el.innerHTML = `<div class="empty-state">${_('noData')}</div>`;
+    return;
+  }
+
+  const accounts = providers.filter(p => p.email && p.email !== '—');
+  if (accounts.length === 0) {
+    el.innerHTML = `<div class="empty-state">${_('noAccounts')}</div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="account-list">
+    ${accounts.map(a => `<div class="account-chip">
+      <span class="chip-provider">${esc(a.provider)}</span>
+      <span>→</span>
+      <span class="chip-email">${esc(a.email)}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+function renderStats(stats) {
+  const el = document.getElementById('stats-content');
+  const count = document.getElementById('stats-count');
+
+  if (!stats) {
+    el.innerHTML = `<div class="empty-state">${_('noStats')}</div>`;
+    count.textContent = '—';
+    return;
+  }
+
+  const fmt = n => {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+    return n.toString();
+  };
+
+  count.textContent = fmt(stats.totalTokens || 0);
+
+  const fmtCost = c => {
+    if (!c || c === 0) return '0$';
+    return c.toFixed(2) + '$';
+  };
+
+  el.innerHTML = `<div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value">${fmt(stats.totalTokens || 0)}</div>
+      <div class="stat-label">${_('totalTokens')}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${fmt(stats.totalRequests || 0)}</div>
+      <div class="stat-label">${_('totalReqs')}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${fmt(stats.today ? stats.today.tokens : 0)}</div>
+      <div class="stat-label">${_('todayTokens')}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${fmt(stats.week ? stats.week.tokens : 0)}</div>
+      <div class="stat-label">${_('weekTokens')}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${fmtCost(stats.totalCost)}</div>
+      <div class="stat-label">${_('totalCost')}</div>
+    </div>
+  </div>`;
+
+  if (stats.byProvider && stats.byProvider.length > 0) {
+    el.innerHTML += `<div class="panel-title" style="margin-top:0.75rem;font-size:0.65rem">${_('byProvider')}</div>
+    <div class="provider-stats">
+      ${stats.byProvider.map(p => `<div class="provider-stat-item">
+        <span class="ps-name">${esc(p.provider)}</span>
+        <span class="ps-val">${fmt(p.promptTokens + p.completionTokens)} ${_('tokensPer')} / ${p.requests} ${_('reqsPer')}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+
+async function switchWs(name) {
+  try {
+    const res = await fetch(`${API}/api/workspace/switch`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    toast(res.ok ? data.message || _('switch') : data.error || _('error'), res.ok ? 'ok' : 'err');
+    // Сброс preview при переключении
+    _previewName = null;
+    load();
+  } catch (e) {
+    toast(_('error') + ': ' + e.message, 'err');
+  }
+}
+
+async function createWorkspace() {
+  const input = document.getElementById('new-name');
+  const name = input.value.trim();
+  if (!name) { toast(_('error'), 'err'); return; }
+  if (!/^[a-zA-Z0-9_-]+$/.test(name)) { toast(_('error'), 'err'); return; }
+
+  const btn = document.getElementById('create-btn');
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const res = await fetch(`${API}/api/workspaces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast(`Workspace "${name}" ` + _('createWs'), 'ok');
+      input.value = '';
+    } else {
+      toast(data.error || _('error'), 'err');
+    }
+    load();
+  } catch (e) {
+    toast(_('error') + ': ' + e.message, 'err');
+  }
+  btn.disabled = false;
+  btn.textContent = '+ ' + _('createWs');
+}
+
+async function deleteWs(name) {
+  if (!confirm(`Delete "${name}"?`)) return;
+  try {
+    const res = await fetch(`${API}/api/workspaces/${name}`, { method: 'DELETE' });
+    const data = await res.json();
+    toast(res.ok ? data.message || _('del') : data.error || _('error'), res.ok ? 'ok' : 'err');
+    load();
+  } catch (e) {
+    toast(_('error') + ': ' + e.message, 'err');
+  }
+}
+
+// Открытые lock-строки (индексы провайдеров)
+let _openLocks = new Set();
+
+function toggleLocks(i) {
+  const el = document.getElementById('locks-' + i);
+  if (!el) return;
+  if (el.style.display === 'none') {
+    el.style.display = '';
+    _openLocks.add(i);
+  } else {
+    el.style.display = 'none';
+    _openLocks.delete(i);
+  }
+}
+
+function previewWs(name) {
+  _previewName = name;
+  loadProviders(name);
+  loadStats(name);
+  document.getElementById('active-ws-display').textContent = name + ' (preview)';
+  toast('Просмотр: ' + name, 'ok');
+}
+
+function autoOAuthKiro() {
+  const url = 'http://localhost:20128/dashboard/providers/kiro';
+  toast(_('oauthOpen'), 'ok');
+  window.open(url, '_blank', 'width=800,height=700');
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  const icon = document.getElementById('toast-icon');
+  const msgEl = document.getElementById('toast-msg');
+  if (!msg) return;
+  icon.textContent = type === 'ok' ? '✓' : '✕';
+  msgEl.textContent = msg;
+  el.className = `toast show ${type}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ============================================================
+// STATUS UPDATE
+// ============================================================
+
+function updateStatusBar(workspaces, active) {
+  const wsEl = document.getElementById('active-ws-display');
+  const statusEl = document.getElementById('ws-status-display');
+  if (active) {
+    wsEl.textContent = active;
+    statusEl.textContent = 'online';
+    statusEl.className = 'online';
+  } else {
+    wsEl.textContent = '—';
+    statusEl.textContent = 'offline';
+    statusEl.className = 'offline';
+  }
+}
+
+const _origRender = render;
+render = function(workspaces, active) {
+  _origRender(workspaces, active);
+  updateStatusBar(workspaces, active);
+};
+
+// ============================================================
+// INIT
+// ============================================================
+
+load();
+window._pollTimer = setInterval(load, 5000);
+</script>
+</body>
+</html>
