@@ -136,6 +136,23 @@ Pull Request'ы приветствуются.
 
 ---
 
+## Roadmap
+
+Полный план разработки: [`ROADMAP.md`](ROADMAP.md)
+
+| Phase | Что | Статус |
+|-------|-----|--------|
+| 1 | Core — workspace, switch, безопасность | ✅ |
+| 2 | Dashboard — провайдеры, статистика, cyberpunk | ✅ |
+| 2.1 | Bugfixes — статусы, ModelLock, RU/EN | ✅ |
+| 3 | GitHub — OpenSource, README, LICENSE | ✅ |
+| **4** | **Proxy per workspace** — свой прокси для каждого профиля | 📝 план |
+| 5 | Future — ключи, автозапуск, WebSocket | 📝 backlog |
+
+**Следующее: Proxy per workspace** — 9router умеет работать через прокси через `PATCH /api/settings`. Добавим в дашборд тумблер On/Off и поле URL для каждого workspace.
+
+---
+
 **MIT © [GPCProject](https://github.com/GPCProject)**
 
 ---
@@ -203,9 +220,24 @@ DELETE /api/workspaces/:name              — delete
 
 Bugs possible. Open an Issue on GitHub if something breaks.
 
+## Roadmap
+
+Full plan: [`ROADMAP.md`](ROADMAP.md)
+
+| Phase | What | Status |
+|-------|------|--------|
+| 1 | Core — workspace, switch, security | ✅ |
+| 2 | Dashboard — providers, stats, cyberpunk | ✅ |
+| 2.1 | Bugfixes — statuses, ModelLock, RU/EN | ✅ |
+| 3 | GitHub — OpenSource, README, LICENSE | ✅ |
+| **4** | **Proxy per workspace** — separate proxy for each profile | 📝 plan |
+| 5 | Future — keys, autostart, WebSocket | 📝 backlog |
+
+**Next: Proxy per workspace** — 9router supports proxy via `PATCH /api/settings`. Add toggle + URL field for each workspace.
+
 ## Contributing
 
-Pull Requests welcome. Fork → changes → PR.  
+Pull Requests welcome. Fork → changes → PR.
 MIT license.
 
 **MIT © [GPCProject](https://github.com/GPCProject)**
