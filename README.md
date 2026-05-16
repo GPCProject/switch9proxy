@@ -13,9 +13,11 @@
 
 ---
 
+![switch9proxy screenshot](web/screenshot.png)
+
 ## Как работает
 
-9router хранит все данные в SQLite: провайдеры, ключи, статистику.  
+9router хранит все данные в SQLite: провайдеры, ключи, статистику.
 Путь к этой БД задаётся через переменную окружения `DATA_DIR`.
 
 switch9proxy делает просто:
@@ -169,9 +171,11 @@ Why:
 
 Doesn't touch original 9router. Just restarts it with another `DATA_DIR`.
 
+![switch9proxy screenshot](web/screenshot.png)
+
 ## How it works
 
-9router stores all data in SQLite. Path to DB is set via `DATA_DIR` env.  
+9router stores all data in SQLite. Path to DB is set via `DATA_DIR` env.
 
 switch9proxy:
 1. **Stops** 9router (kill process on port 20128)
